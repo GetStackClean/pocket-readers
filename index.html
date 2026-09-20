@@ -5,11 +5,11 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#0b132b" />
   <title>Pocket Readers</title>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
   <style>
     :root{
-      --bg:#08111f; --panel:#111c2e; --panel2:#17243a; --text:#f7fbff;
-      --muted:#9fb0c6; --accent:#58d68d; --accent2:#6fb7ff; --danger:#ff7c7c;
-      --shadow:0 18px 50px rgba(0,0,0,.34);
+      --bg:#08111f;--panel:#111c2e;--text:#f7fbff;--muted:#9fb0c6;
+      --accent:#58d68d;--accent2:#6fb7ff;--shadow:0 18px 50px rgba(0,0,0,.34)
     }
     *{box-sizing:border-box}
     html,body{margin:0;min-height:100%;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
@@ -17,263 +17,407 @@
     button{font:inherit}
     .app{min-height:100dvh;display:flex;flex-direction:column}
     .topbar{display:flex;align-items:center;justify-content:space-between;padding:18px 18px 12px;position:relative;z-index:5}
-    .brand{font-size:20px;font-weight:800;letter-spacing:-.02em}
-    .brand span{color:var(--accent)}
+    .brand{font-size:20px;font-weight:800;letter-spacing:-.02em}.brand span{color:var(--accent)}
     .status{font-size:12px;color:var(--muted)}
-    .screen{display:none;flex:1;min-height:0}
-    .screen.active{display:flex}
+    .screen{display:none;flex:1;min-height:0}.screen.active{display:flex}
     #home{padding:14px 18px 28px;flex-direction:column;gap:18px}
     .hero{background:linear-gradient(145deg,var(--panel),#0e1930);border:1px solid rgba(255,255,255,.08);border-radius:24px;padding:22px;box-shadow:var(--shadow)}
-    .hero h1{margin:0 0 8px;font-size:32px;letter-spacing:-.04em}
-    .hero p{margin:0;color:var(--muted);line-height:1.5}
+    .hero h1{margin:0 0 8px;font-size:32px;letter-spacing:-.04em}.hero p{margin:0;color:var(--muted);line-height:1.5}
     .reader-card{display:flex;align-items:center;gap:16px;background:var(--panel);border:1px solid rgba(255,255,255,.08);padding:18px;border-radius:20px;cursor:pointer;color:var(--text);text-align:left}
     .reader-card:active{transform:scale(.99)}
     .icon{width:54px;height:54px;border-radius:16px;background:rgba(88,214,141,.14);display:grid;place-items:center;font-size:28px;flex:0 0 auto}
-    .reader-card strong{display:block;font-size:18px;margin-bottom:4px}
-    .reader-card small{color:var(--muted);font-size:14px;line-height:1.35}
+    .reader-card strong{display:block;font-size:18px;margin-bottom:4px}.reader-card small{color:var(--muted);font-size:14px;line-height:1.35}
+    .free-note{font-size:13px;color:var(--muted);text-align:center;margin-top:-4px}
     #reader{position:relative;background:#000;overflow:hidden;flex-direction:column}
     .camera-wrap{position:absolute;inset:0}
     video,.freeze-image{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
-    .freeze-image{display:none}
+    .freeze-image{display:none;object-fit:contain}
     .shade{position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,.5),transparent 22%,transparent 68%,rgba(0,0,0,.72))}
     .reader-head{position:relative;z-index:4;display:flex;justify-content:space-between;align-items:center;padding:14px 14px 0}
     .pill-btn{border:1px solid rgba(255,255,255,.22);background:rgba(4,10,18,.68);backdrop-filter:blur(10px);color:#fff;border-radius:999px;padding:10px 14px;font-weight:700}
     .reader-title{font-weight:800;text-shadow:0 1px 8px #000}
-    .reticle{position:absolute;z-index:3;left:50%;top:48%;transform:translate(-50%,-50%);width:min(82vw,480px);height:min(46vh,360px);border:2px solid rgba(255,255,255,.9);border-radius:20px;box-shadow:0 0 0 9999px rgba(0,0,0,.12)}
+    .reticle{position:absolute;z-index:3;left:50%;top:48%;transform:translate(-50%,-50%);width:min(86vw,520px);height:min(43vh,340px);border:2px solid rgba(255,255,255,.95);border-radius:20px;box-shadow:0 0 0 9999px rgba(0,0,0,.15)}
     .reticle:before,.reticle:after{content:"";position:absolute;width:34px;height:34px}
     .reticle:before{left:-3px;top:-3px;border-left:5px solid var(--accent);border-top:5px solid var(--accent);border-radius:18px 0 0 0}
     .reticle:after{right:-3px;bottom:-3px;border-right:5px solid var(--accent);border-bottom:5px solid var(--accent);border-radius:0 0 18px 0}
+    #reader.frozen .reticle,#reader.frozen .shade{display:none}
     .controls{margin-top:auto;position:relative;z-index:4;padding:16px 16px max(20px,env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:10px}
     .hint{text-align:center;color:#fff;text-shadow:0 1px 8px #000;font-size:14px;margin-bottom:2px}
     .main-btn{border:0;border-radius:18px;padding:16px 18px;font-size:18px;font-weight:850;min-height:56px;box-shadow:var(--shadow)}
-    .freeze-btn{background:#fff;color:#07101e}
-    .read-btn{background:var(--accent);color:#062213}
+    .freeze-btn{background:#fff;color:#07101e}.read-btn{background:var(--accent);color:#062213}
     .secondary{background:rgba(8,17,31,.76);color:#fff;border:1px solid rgba(255,255,255,.22);backdrop-filter:blur(10px)}
     #result{padding:10px 16px max(24px,env(safe-area-inset-bottom));flex-direction:column;gap:14px;overflow:auto}
     .result-card{background:var(--panel);border:1px solid rgba(255,255,255,.08);border-radius:22px;padding:18px;box-shadow:var(--shadow)}
-    .result-card h2{margin:0 0 12px;font-size:18px}
-    #readText{font-size:23px;line-height:1.5;white-space:pre-wrap;margin:0}
-    .result-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-    .back-readers{grid-column:1/-1;background:var(--accent2);color:#061525}
-    .loading{display:none;align-items:center;justify-content:center;gap:10px;color:#fff;background:rgba(0,0,0,.7);position:absolute;inset:0;z-index:10}
-    .loading.show{display:flex}
-    .spinner{width:24px;height:24px;border:3px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite}
-    @keyframes spin{to{transform:rotate(360deg)}}
-    .error{display:none;background:#3a1820;border:1px solid rgba(255,124,124,.4);color:#ffd9d9;padding:12px 14px;border-radius:14px;font-size:14px}
-    .error.show{display:block}
+    .result-card h2{margin:0 0 12px;font-size:18px}#readText{font-size:23px;line-height:1.5;white-space:pre-wrap;margin:0}
+    .result-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}.back-readers{grid-column:1/-1;background:var(--accent2);color:#061525}
+    .loading{display:none;align-items:center;justify-content:center;flex-direction:column;gap:10px;color:#fff;background:rgba(0,0,0,.78);position:absolute;inset:0;z-index:10;padding:28px;text-align:center}
+    .loading.show{display:flex}.spinner{width:28px;height:28px;border:3px solid rgba(255,255,255,.25);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite}
+    .progress{font-size:13px;color:#d7e3f1;min-height:18px}@keyframes spin{to{transform:rotate(360deg)}}
+    .error{display:none;background:#3a1820;border:1px solid rgba(255,124,124,.4);color:#ffd9d9;padding:12px 14px;border-radius:14px;font-size:14px}.error.show{display:block}
     canvas{display:none}
   </style>
 </head>
 <body>
-  <main class="app">
-    <header class="topbar" id="topbar">
-      <div class="brand">Pocket <span>Readers</span></div>
-      <div class="status" id="status">Ready</div>
-    </header>
+<main class="app">
+  <header class="topbar" id="topbar">
+    <div class="brand">Pocket <span>Readers</span></div>
+    <div class="status" id="status">Ready</div>
+  </header>
 
-    <section class="screen active" id="home">
-      <div class="hero">
-        <h1>What do you need to read?</h1>
-        <p>Point your camera at small or hard-to-read print, freeze it, and Pocket Readers will read the useful text aloud.</p>
+  <section class="screen active" id="home">
+    <div class="hero">
+      <h1>What do you need to read?</h1>
+      <p>Point your camera at small or hard-to-read print, freeze it, and Pocket Readers will read the useful text aloud.</p>
+    </div>
+    <button class="reader-card" id="openCamera">
+      <div class="icon">◉</div>
+      <div>
+        <strong>Camera Reader</strong>
+        <small>Labels, menus, mail, packages, signs, nutrition facts and more.</small>
       </div>
-      <button class="reader-card" id="openCamera">
-        <div class="icon">◉</div>
-        <div>
-          <strong>Camera Reader</strong>
-          <small>Labels, menus, mail, packages, signs, nutrition facts and more.</small>
-        </div>
-      </button>
-    </section>
+    </button>
+    <div class="free-note">Reading happens on your device — no paid AI service required.</div>
+  </section>
 
-    <section class="screen" id="reader">
-      <div class="camera-wrap">
-        <video id="video" autoplay playsinline muted></video>
-        <img id="freezeImage" class="freeze-image" alt="Frozen camera view" />
-        <div class="shade"></div>
-        <div class="reticle"></div>
-      </div>
+  <section class="screen" id="reader">
+    <div class="camera-wrap">
+      <video id="video" autoplay playsinline muted></video>
+      <img id="freezeImage" class="freeze-image" alt="Frozen text area" />
+      <div class="shade"></div>
+      <div class="reticle" id="reticle"></div>
+    </div>
 
-      <div class="reader-head">
-        <button class="pill-btn" id="backHome">← Readers</button>
-        <div class="reader-title" id="readerMode">Live camera</div>
-        <button class="pill-btn" id="flipCamera">Flip</button>
-      </div>
+    <div class="reader-head">
+      <button class="pill-btn" id="backHome">← Readers</button>
+      <div class="reader-title" id="readerMode">Live camera</div>
+      <button class="pill-btn" id="flipCamera">Flip</button>
+    </div>
 
-      <div class="controls">
-        <div class="hint" id="hint">Fill the box with the text you want to read.</div>
-        <button class="main-btn freeze-btn" id="freezeBtn">Freeze</button>
-        <button class="main-btn read-btn" id="readBtn" style="display:none">Read This</button>
-        <button class="main-btn secondary" id="retakeBtn" style="display:none">Retake</button>
-      </div>
+    <div class="controls">
+      <div class="hint" id="hint">Fill the box with only the text you want read.</div>
+      <button class="main-btn freeze-btn" id="freezeBtn">Freeze</button>
+      <button class="main-btn read-btn" id="readBtn" style="display:none">Read This</button>
+      <button class="main-btn secondary" id="retakeBtn" style="display:none">Retake</button>
+    </div>
 
-      <div class="loading" id="loading">
-        <div class="spinner"></div>
-        <strong>Reading the image…</strong>
-      </div>
-      <canvas id="canvas"></canvas>
-    </section>
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+      <strong>Reading on your device…</strong>
+      <div class="progress" id="progressText">Preparing text recognition</div>
+    </div>
+    <canvas id="cropCanvas"></canvas>
+    <canvas id="processCanvas"></canvas>
+  </section>
 
-    <section class="screen" id="result">
-      <div class="error" id="errorBox"></div>
-      <div class="result-card">
-        <h2>What I can read</h2>
-        <p id="readText"></p>
-      </div>
-      <div class="result-actions">
-        <button class="main-btn secondary" id="speakAgain">Read Aloud</button>
-        <button class="main-btn secondary" id="stopSpeaking">Stop</button>
-        <button class="main-btn back-readers" id="backToReaders">← Back to Readers</button>
-      </div>
-    </section>
-  </main>
+  <section class="screen" id="result">
+    <div class="error" id="errorBox"></div>
+    <div class="result-card">
+      <h2>What I can read</h2>
+      <p id="readText"></p>
+    </div>
+    <div class="result-actions">
+      <button class="main-btn secondary" id="speakAgain">Read Aloud</button>
+      <button class="main-btn secondary" id="stopSpeaking">Stop</button>
+      <button class="main-btn back-readers" id="backToReaders">← Back to Readers</button>
+    </div>
+  </section>
+</main>
 
 <script>
-  const screens = {
-    home: document.getElementById('home'),
-    reader: document.getElementById('reader'),
-    result: document.getElementById('result')
-  };
-  const topbar = document.getElementById('topbar');
-  const status = document.getElementById('status');
-  const video = document.getElementById('video');
-  const canvas = document.getElementById('canvas');
-  const freezeImage = document.getElementById('freezeImage');
-  const freezeBtn = document.getElementById('freezeBtn');
-  const readBtn = document.getElementById('readBtn');
-  const retakeBtn = document.getElementById('retakeBtn');
-  const loading = document.getElementById('loading');
-  const readText = document.getElementById('readText');
-  const errorBox = document.getElementById('errorBox');
-  const readerMode = document.getElementById('readerMode');
-  const hint = document.getElementById('hint');
+const screens={home:document.getElementById('home'),reader:document.getElementById('reader'),result:document.getElementById('result')};
+const topbar=document.getElementById('topbar');
+const statusEl=document.getElementById('status');
+const reader=document.getElementById('reader');
+const video=document.getElementById('video');
+const reticle=document.getElementById('reticle');
+const cropCanvas=document.getElementById('cropCanvas');
+const processCanvas=document.getElementById('processCanvas');
+const freezeImage=document.getElementById('freezeImage');
+const freezeBtn=document.getElementById('freezeBtn');
+const readBtn=document.getElementById('readBtn');
+const retakeBtn=document.getElementById('retakeBtn');
+const loading=document.getElementById('loading');
+const progressText=document.getElementById('progressText');
+const readText=document.getElementById('readText');
+const errorBox=document.getElementById('errorBox');
+const readerMode=document.getElementById('readerMode');
+const hint=document.getElementById('hint');
 
-  let stream = null;
-  let facingMode = 'environment';
-  let frozenDataUrl = '';
-  let lastText = '';
+let stream=null;
+let facingMode='environment';
+let frozenCanvas=null;
+let lastText='';
+let worker=null;
 
-  function showScreen(name){
-    Object.values(screens).forEach(s => s.classList.remove('active'));
-    screens[name].classList.add('active');
-    topbar.style.display = name === 'reader' ? 'none' : 'flex';
-    errorBox.classList.remove('show');
-  }
+function showScreen(name){
+  Object.values(screens).forEach(s=>s.classList.remove('active'));
+  screens[name].classList.add('active');
+  topbar.style.display=name==='reader'?'none':'flex';
+  errorBox.classList.remove('show');
+}
 
-  async function startCamera(){
-    stopCamera();
-    frozenDataUrl = '';
-    freezeImage.style.display = 'none';
-    video.style.display = 'block';
-    freezeBtn.style.display = 'block';
-    readBtn.style.display = 'none';
-    retakeBtn.style.display = 'none';
-    readerMode.textContent = 'Live camera';
-    hint.textContent = 'Fill the box with the text you want to read.';
-    try{
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: facingMode }, width:{ideal:1920}, height:{ideal:1080} },
-        audio:false
-      });
-      video.srcObject = stream;
-      await video.play();
-      status.textContent = 'Camera ready';
-    }catch(err){
-      alert('Pocket Readers needs camera access. Please allow camera permission and try again.');
-      showScreen('home');
+async function startCamera(){
+  stopCamera();
+  reader.classList.remove('frozen');
+  frozenCanvas=null;
+  freezeImage.style.display='none';
+  video.style.display='block';
+  freezeBtn.style.display='block';
+  readBtn.style.display='none';
+  retakeBtn.style.display='none';
+  readerMode.textContent='Live camera';
+  hint.textContent='Fill the box with only the text you want read.';
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({
+      video:{
+        facingMode:{ideal:facingMode},
+        width:{ideal:2560},
+        height:{ideal:1440}
+      },
+      audio:false
+    });
+    video.srcObject=stream;
+    await video.play();
+
+    const track=stream.getVideoTracks()[0];
+    if(track && track.getCapabilities && track.applyConstraints){
+      const caps=track.getCapabilities();
+      const advanced={};
+      if(Array.isArray(caps.focusMode) && caps.focusMode.includes('continuous')) advanced.focusMode='continuous';
+      if(Object.keys(advanced).length){
+        try{ await track.applyConstraints({advanced:[advanced]}); }catch(e){}
+      }
     }
-  }
-
-  function stopCamera(){
-    if(stream){
-      stream.getTracks().forEach(t => t.stop());
-      stream = null;
-    }
-    video.srcObject = null;
-  }
-
-  function freezeFrame(){
-    if(!video.videoWidth || !video.videoHeight) return;
-    const maxW = 1600;
-    const scale = Math.min(1, maxW / video.videoWidth);
-    canvas.width = Math.round(video.videoWidth * scale);
-    canvas.height = Math.round(video.videoHeight * scale);
-    const ctx = canvas.getContext('2d', { alpha:false });
-    ctx.drawImage(video,0,0,canvas.width,canvas.height);
-    frozenDataUrl = canvas.toDataURL('image/jpeg',0.9);
-    freezeImage.src = frozenDataUrl;
-    freezeImage.style.display = 'block';
-    video.style.display = 'none';
-    freezeBtn.style.display = 'none';
-    readBtn.style.display = 'block';
-    retakeBtn.style.display = 'block';
-    readerMode.textContent = 'Frozen';
-    hint.textContent = 'If the text is clear, tap Read This.';
-  }
-
-  async function readFrozen(){
-    if(!frozenDataUrl) return;
-    loading.classList.add('show');
-    errorBox.classList.remove('show');
-    try{
-      const r = await fetch('/api/read',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({ image:frozenDataUrl })
-      });
-      const data = await r.json().catch(()=>({}));
-      if(!r.ok) throw new Error(data.error || 'Could not read the image.');
-      lastText = (data.text || '').trim();
-      if(!lastText) throw new Error('No readable text was found.');
-      readText.textContent = lastText;
-      showScreen('result');
-      status.textContent = 'Read complete';
-      speak(lastText);
-    }catch(err){
-      showScreen('result');
-      readText.textContent = '';
-      errorBox.textContent = err.message || 'Something went wrong.';
-      errorBox.classList.add('show');
-      status.textContent = 'Try again';
-    }finally{
-      loading.classList.remove('show');
-      stopCamera();
-    }
-  }
-
-  function speak(text){
-    if(!('speechSynthesis' in window) || !text) return;
-    speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.rate = 0.92;
-    u.pitch = 1;
-    speechSynthesis.speak(u);
-  }
-
-  function backToReaders(){
-    if('speechSynthesis' in window) speechSynthesis.cancel();
-    stopCamera();
+    statusEl.textContent='Camera ready';
+  }catch(err){
+    alert('Pocket Readers needs camera access. Please allow camera permission and try again.');
     showScreen('home');
-    status.textContent = 'Ready';
   }
+}
 
-  document.getElementById('openCamera').addEventListener('click', async()=>{
-    showScreen('reader');
-    await startCamera();
+function stopCamera(){
+  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
+  video.srcObject=null;
+}
+
+function cropReticleFromVideo(){
+  if(!video.videoWidth||!video.videoHeight)return null;
+
+  const vr=video.getBoundingClientRect();
+  const rr=reticle.getBoundingClientRect();
+  const sourceW=video.videoWidth, sourceH=video.videoHeight;
+  const scale=Math.max(vr.width/sourceW,vr.height/sourceH);
+  const shownW=sourceW*scale, shownH=sourceH*scale;
+  const hiddenX=(shownW-vr.width)/2;
+  const hiddenY=(shownH-vr.height)/2;
+
+  let sx=(rr.left-vr.left+hiddenX)/scale;
+  let sy=(rr.top-vr.top+hiddenY)/scale;
+  let sw=rr.width/scale;
+  let sh=rr.height/scale;
+
+  const inset=Math.min(sw,sh)*0.015;
+  sx+=inset; sy+=inset; sw-=inset*2; sh-=inset*2;
+  sx=Math.max(0,sx); sy=Math.max(0,sy);
+  sw=Math.min(sw,sourceW-sx); sh=Math.min(sh,sourceH-sy);
+
+  const targetW=Math.min(2200,Math.max(1500,Math.round(sw*1.8)));
+  const targetH=Math.round(targetW*(sh/sw));
+  cropCanvas.width=targetW;
+  cropCanvas.height=targetH;
+  const ctx=cropCanvas.getContext('2d',{alpha:false});
+  ctx.imageSmoothingEnabled=true;
+  ctx.imageSmoothingQuality='high';
+  ctx.drawImage(video,sx,sy,sw,sh,0,0,targetW,targetH);
+  return cropCanvas;
+}
+
+function freezeFrame(){
+  const c=cropReticleFromVideo();
+  if(!c)return;
+  frozenCanvas=c;
+  freezeImage.src=c.toDataURL('image/jpeg',0.94);
+  freezeImage.style.display='block';
+  video.style.display='none';
+  reader.classList.add('frozen');
+  freezeBtn.style.display='none';
+  readBtn.style.display='block';
+  retakeBtn.style.display='block';
+  readerMode.textContent='Frozen text';
+  hint.textContent='Check that the text is sharp, then tap Read This.';
+}
+
+function makeProcessedCanvas(source,mode){
+  const w=source.width,h=source.height;
+  processCanvas.width=w; processCanvas.height=h;
+  const ctx=processCanvas.getContext('2d',{alpha:false});
+  ctx.clearRect(0,0,w,h);
+  ctx.filter=mode==='gray'?'grayscale(1) contrast(1.65) brightness(1.05)':'grayscale(1) contrast(1.35)';
+  ctx.drawImage(source,0,0,w,h);
+  ctx.filter='none';
+
+  if(mode==='threshold'){
+    const img=ctx.getImageData(0,0,w,h);
+    const d=img.data;
+    const hist=new Uint32Array(256);
+    for(let i=0;i<d.length;i+=4){
+      const y=Math.round(.299*d[i]+.587*d[i+1]+.114*d[i+2]);
+      hist[y]++;
+    }
+    const total=w*h;
+    let sum=0;
+    for(let i=0;i<256;i++)sum+=i*hist[i];
+    let sumB=0,wB=0,max=0,threshold=150;
+    for(let t=0;t<256;t++){
+      wB+=hist[t]; if(!wB)continue;
+      const wF=total-wB; if(!wF)break;
+      sumB+=t*hist[t];
+      const mB=sumB/wB,mF=(sum-sumB)/wF;
+      const between=wB*wF*(mB-mF)*(mB-mF);
+      if(between>max){max=between;threshold=t}
+    }
+    for(let i=0;i<d.length;i+=4){
+      const y=Math.round(.299*d[i]+.587*d[i+1]+.114*d[i+2]);
+      const v=y>threshold?255:0;
+      d[i]=d[i+1]=d[i+2]=v; d[i+3]=255;
+    }
+    ctx.putImageData(img,0,0);
+  }
+  return processCanvas;
+}
+
+function cleanOCR(text){
+  const raw=(text||'')
+    .replace(/\r/g,'')
+    .replace(/[“”]/g,'"')
+    .replace(/[‘’]/g,"'")
+    .replace(/[|¦]/g,'I');
+
+  const lines=raw.split('\n').map(s=>s.replace(/\s+/g,' ').trim()).filter(Boolean);
+  const out=[],seen=new Set();
+
+  for(let line of lines){
+    line=line.replace(/^[-_=~.,:;'"\s]+|[-_=~.,:;'"\s]+$/g,'').trim();
+    if(!line)continue;
+
+    const letters=(line.match(/[A-Za-z]/g)||[]).length;
+    const digits=(line.match(/[0-9]/g)||[]).length;
+    const useful=letters+digits;
+    const weird=(line.match(/[^A-Za-z0-9%$#&@()+\/.,:'"!?°-]/g)||[]).length;
+    const tokens=line.split(/\s+/);
+    const tinyNoise=tokens.filter(t=>/^[A-Za-z]{1,2}[-]?$/i.test(t) && !/^(a|i|oz|ml|mg|lb|lbs|g|kg|in|ft|to|of|or|no|on|by|at|up)$/i.test(t)).length;
+
+    if(useful<2)continue;
+    if(weird>Math.max(2,line.length*.18))continue;
+    if(tokens.length>=2 && tinyNoise/tokens.length>.55 && digits===0)continue;
+    if(line.length<=3 && digits===0 && !/^[A-Z]{2,3}$/.test(line) && !/^(oz|ml|mg|lb|lbs|kg)$/i.test(line))continue;
+
+    const key=line.toLowerCase().replace(/[^a-z0-9]/g,'');
+    if(!key||seen.has(key))continue;
+    seen.add(key);
+    out.push(line);
+  }
+  return out.join('\n').trim();
+}
+
+function resultScore(result){
+  const txt=cleanOCR(result?.data?.text||'');
+  const confidence=Number(result?.data?.confidence||0);
+  const useful=(txt.match(/[A-Za-z0-9]/g)||[]).length;
+  const lines=txt?txt.split('\n').length:0;
+  return {text:txt,score:confidence+(Math.min(useful,600)/30)+Math.min(lines,15),confidence};
+}
+
+async function getWorker(){
+  if(worker)return worker;
+  if(!window.Tesseract)throw new Error('The free text reader did not load. Check your internet connection and try again.');
+  worker=await Tesseract.createWorker('eng',1,{
+    logger:m=>{
+      if(m.status==='recognizing text'){
+        progressText.textContent='Recognizing text… '+Math.round((m.progress||0)*100)+'%';
+      }else if(m.status){
+        const pretty=m.status.charAt(0).toUpperCase()+m.status.slice(1);
+        progressText.textContent=pretty;
+      }
+    }
   });
-  document.getElementById('backHome').addEventListener('click', backToReaders);
-  document.getElementById('backToReaders').addEventListener('click', backToReaders);
-  document.getElementById('flipCamera').addEventListener('click', async()=>{
-    facingMode = facingMode === 'environment' ? 'user' : 'environment';
-    await startCamera();
+  return worker;
+}
+
+async function recognizeVariant(source,mode,psm){
+  const w=await getWorker();
+  await w.setParameters({
+    tessedit_pageseg_mode:String(psm),
+    preserve_interword_spaces:'1',
+    user_defined_dpi:'300'
   });
-  freezeBtn.addEventListener('click', freezeFrame);
-  readBtn.addEventListener('click', readFrozen);
-  retakeBtn.addEventListener('click', startCamera);
-  document.getElementById('speakAgain').addEventListener('click',()=>speak(lastText));
-  document.getElementById('stopSpeaking').addEventListener('click',()=>{
-    if('speechSynthesis' in window) speechSynthesis.cancel();
-  });
-  window.addEventListener('pagehide',stopCamera);
+  const canvas=makeProcessedCanvas(source,mode);
+  return w.recognize(canvas);
+}
+
+async function readFrozen(){
+  if(!frozenCanvas)return;
+  loading.classList.add('show');
+  errorBox.classList.remove('show');
+  progressText.textContent='Preparing text recognition…';
+
+  try{
+    const first=await recognizeVariant(frozenCanvas,'gray',11);
+    let best=resultScore(first);
+
+    if(best.confidence<74 || best.text.length<35){
+      progressText.textContent='Trying a clearer text pass…';
+      const second=await recognizeVariant(frozenCanvas,'threshold',6);
+      const s2=resultScore(second);
+      if(s2.score>best.score)best=s2;
+    }
+
+    lastText=best.text;
+    if(!lastText || lastText.replace(/\s/g,'').length<2){
+      throw new Error("I couldn't read that clearly. Move closer, avoid glare, keep only the text inside the box, and freeze again.");
+    }
+
+    readText.textContent=lastText;
+    showScreen('result');
+    statusEl.textContent='Read complete';
+    speak(lastText);
+  }catch(err){
+    showScreen('result');
+    readText.textContent='';
+    errorBox.textContent=err.message||'Something went wrong while reading.';
+    errorBox.classList.add('show');
+    statusEl.textContent='Try again';
+  }finally{
+    loading.classList.remove('show');
+    stopCamera();
+  }
+}
+
+function speak(text){
+  if(!('speechSynthesis' in window)||!text)return;
+  speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text);
+  u.rate=.92;u.pitch=1;
+  speechSynthesis.speak(u);
+}
+
+function backToReaders(){
+  if('speechSynthesis'in window)speechSynthesis.cancel();
+  stopCamera();
+  showScreen('home');
+  statusEl.textContent='Ready';
+}
+
+document.getElementById('openCamera').addEventListener('click',async()=>{showScreen('reader');await startCamera()});
+document.getElementById('backHome').addEventListener('click',backToReaders);
+document.getElementById('backToReaders').addEventListener('click',backToReaders);
+document.getElementById('flipCamera').addEventListener('click',async()=>{facingMode=facingMode==='environment'?'user':'environment';await startCamera()});
+freezeBtn.addEventListener('click',freezeFrame);
+readBtn.addEventListener('click',readFrozen);
+retakeBtn.addEventListener('click',startCamera);
+document.getElementById('speakAgain').addEventListener('click',()=>speak(lastText));
+document.getElementById('stopSpeaking').addEventListener('click',()=>{if('speechSynthesis'in window)speechSynthesis.cancel()});
+window.addEventListener('pagehide',stopCamera);
 </script>
 </body>
 </html>
